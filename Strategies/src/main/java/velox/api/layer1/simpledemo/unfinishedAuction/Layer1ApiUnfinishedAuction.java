@@ -156,60 +156,50 @@ public class Layer1ApiUnfinishedAuction implements
             return;
         }
 
-        String userName = indicatorsFullNameToUserName.get(indicatorName);
+        long t1 = t0 + (intervalWidth * intervalsNumber);
+        long newIntervalWidth = Long.parseLong("30000000000");
+        int newIntervalNumber = (int) ((t1 - t0) / newIntervalWidth);
 
-        switch (userName) {
-            case INDICATOR_NAME_TRADE: {
-                long t1 = t0 + (intervalWidth * intervalsNumber);
-                long newIntervalWidth = Long.parseLong("30000000000");
-                int newIntervalNumber = (int) ((t1 - t0) / newIntervalWidth);
+        ArrayList<TreeResponseInterval> newIntervalResponse = dataStructureInterface.get(t0, newIntervalWidth, newIntervalNumber, alias,
+                new StandardEvents[]{StandardEvents.TRADE});
 
-                ArrayList<TreeResponseInterval> newIntervalResponse = dataStructureInterface.get(t0, newIntervalWidth, newIntervalNumber, alias,
-                        new StandardEvents[]{StandardEvents.TRADE});
+        ArrayList<TreeResponseInterval> intervalResponse = dataStructureInterface.get(t0, intervalWidth, intervalsNumber, alias,
+                new StandardEvents[]{StandardEvents.TRADE});
 
-                ArrayList<TreeResponseInterval> intervalResponse = dataStructureInterface.get(t0, intervalWidth, intervalsNumber, alias,
-                        new StandardEvents[]{StandardEvents.TRADE});
+        double lastPrice = ((TradeAggregationEvent) intervalResponse.get(0).events.get(StandardEvents.TRADE.toString())).lastPrice;
 
-                double lastPrice = ((TradeAggregationEvent) intervalResponse.get(0).events.get(StandardEvents.TRADE.toString())).lastPrice;
+        for (TreeResponseInterval responseInterval : newIntervalResponse) {
+            Map<Double, Map<Integer, Integer>> askAggressorMap = ((TradeAggregationEvent) responseInterval.events.get(StandardEvents.TRADE.toString())).askAggressorMap;
+            Map<Double, Map<Integer, Integer>> bidAggressorMap = ((TradeAggregationEvent) responseInterval.events.get(StandardEvents.TRADE.toString())).bidAggressorMap;
 
-                for (TreeResponseInterval responseInterval : newIntervalResponse) {
-                    Map<Double, Map<Integer, Integer>> askAggressorMap = ((TradeAggregationEvent) responseInterval.events.get(StandardEvents.TRADE.toString())).askAggressorMap;
-                    Map<Double, Map<Integer, Integer>> bidAggressorMap = ((TradeAggregationEvent) responseInterval.events.get(StandardEvents.TRADE.toString())).bidAggressorMap;
-
-                    if (askAggressorMap.isEmpty() || bidAggressorMap.isEmpty()) {
-                        continue;
-                    }
-                    Double minAskPrice = Collections.min(askAggressorMap.keySet());
-                    Double minBidPrice = Collections.min(bidAggressorMap.keySet());
-
-                    Double maxAskPrice = Collections.max(askAggressorMap.keySet());
-                    Double maxBidPrice = Collections.max(bidAggressorMap.keySet());
-
-                    if (minAskPrice.equals(minBidPrice) || maxBidPrice.equals(maxAskPrice)) {
-                        unfinishedAuctionsMap.add(responseInterval);
-                    }
-
-                }
-
-                for (int i = 1; i <= intervalsNumber; ++i) {
-                    TradeAggregationEvent trades = (TradeAggregationEvent) intervalResponse.get(i).events.get(StandardEvents.TRADE.toString());
-
-                    if (!Double.isNaN(trades.lastPrice)) {
-                        lastPrice = trades.lastPrice;
-                    }
-
-                    if (trades.askAggressorMap.isEmpty() && trades.bidAggressorMap.isEmpty()) {
-                        listener.provideResponse(lastPrice);
-                    }
-                }
-
-                listener.setCompleted();
-                break;
+            if (askAggressorMap.isEmpty() || bidAggressorMap.isEmpty()) {
+                continue;
             }
-            default:
-                throw new IllegalArgumentException("Unknown indicator name " + indicatorName);
+            Double minAskPrice = Collections.min(askAggressorMap.keySet());
+            Double minBidPrice = Collections.min(bidAggressorMap.keySet());
+
+            Double maxAskPrice = Collections.max(askAggressorMap.keySet());
+            Double maxBidPrice = Collections.max(bidAggressorMap.keySet());
+
+            if (minAskPrice.equals(minBidPrice) || maxBidPrice.equals(maxAskPrice)) {
+                unfinishedAuctionsMap.add(responseInterval);
+            }
+
         }
 
+        for (int i = 1; i <= intervalsNumber; ++i) {
+            TradeAggregationEvent trades = (TradeAggregationEvent) intervalResponse.get(i).events.get(StandardEvents.TRADE.toString());
+
+            if (!Double.isNaN(trades.lastPrice)) {
+                lastPrice = trades.lastPrice;
+            }
+
+            if (trades.askAggressorMap.isEmpty() && trades.bidAggressorMap.isEmpty()) {
+                listener.provideResponse(lastPrice);
+            }
+        }
+
+        listener.setCompleted();
     }
 
     @Override
