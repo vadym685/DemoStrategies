@@ -181,7 +181,24 @@ public class Layer1ApiUnfinishedAuction implements
             Double maxAskPrice = Collections.max(askAggressorMap.keySet());
             Double maxBidPrice = Collections.max(bidAggressorMap.keySet());
 
-            if (minAskPrice.equals(minBidPrice) || maxBidPrice.equals(maxAskPrice)) {
+            Double minPrice;
+            Double maxPrice;
+
+            if (minAskPrice < minBidPrice) {
+                minPrice = minAskPrice;
+            } else {
+                minPrice = minBidPrice;
+            }
+
+            if (maxAskPrice < maxBidPrice) {
+                maxPrice = maxAskPrice;
+            } else {
+                maxPrice = maxBidPrice;
+            }
+
+
+            if (askAggressorMap.get(minPrice) != null && bidAggressorMap.get(minPrice) != null
+                    || askAggressorMap.get(maxPrice) != null && bidAggressorMap.get(maxPrice) != null) {
                 unfinishedAuctionsMap.add(responseInterval);
             }
 
